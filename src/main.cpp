@@ -7,21 +7,43 @@ controller Controller1;
 
 motor rDrive(PORT1, ratio18_1);
 motor lDrive(PORT2, ratio18_1, true);
-motor sDrive(PORT3, ratio18_1, true);
+motor sDrive(PORT3, ratio36_1, true);
 
-void MoveMotors(float lInput, float rInput);
+const float MOTOR_ACCEL_LIMIT = 8;
 
+int s_lastL = 0;
+int s_lastR = 0;
+
+bool isFast = false;
 
 const float WHEEL_CIRCUMFERENCE = 31.9185812596;
 
 
 // Groups go here using motor_group
 
-void MoveMotors(float lInput, float rInput, float sInput)
+
+
+void setSideSpeeds(int lSpeed, int rSpeed, int strafeSpeed)
 {
-  lDrive.spin(fwd, lInput, pct);
-  rDrive.spin(fwd, rInput, pct);
-  sDrive.spin(fwd, sInput, pct);
+    if ((strafeSpeed - s_lastL) > MOTOR_ACCEL_LIMIT)
+        strafeSpeed = s_lastL + MOTOR_ACCEL_LIMIT;
+    if ((strafeSpeed - s_lastL) < -MOTOR_ACCEL_LIMIT)
+        strafeSpeed = s_lastL - MOTOR_ACCEL_LIMIT;
+
+    s_lastL = strafeSpeed;
+
+    if (lSpeed == 0)
+        lDrive.stop(brakeType::brake);
+    else
+        lDrive.spin(directionType::fwd, lSpeed, velocityUnits::pct);
+    if (rSpeed == 0)
+        rDrive.stop(brakeType::brake);
+    else
+        rDrive.spin(directionType::fwd, rSpeed, velocityUnits::pct);
+    if (strafeSpeed == 0)
+        sDrive.stop(brakeType::brake);
+    else 
+        sDrive.spin(directionType::fwd, strafeSpeed, velocityUnits::pct);
 }
 
 
@@ -79,9 +101,6 @@ void DriveDistance(int dist, float maxTime)
 
     motorSpeed = Kp * distError + Ki * integral + Kd * derivative;
   }
-
-
-
 }
 void autonomous(void) {
   // ..........................................................................
@@ -99,59 +118,66 @@ void autonomous(void) {
 /*                                                                           */
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
-
+void WriteInfo()
+{
+  Controller1.Screen.clearScreen();
+  Controller1.Screen.setCursor(1, 1);
+  Controller1.Screen.print("Fast Turning: ");
+  Controller1.Screen.print(isFast ? "Enabled" : "Disabled");
+  Controller1.Screen.setCursor(3, 1);
+  Controller1.Screen.print("Battery: ");
+  Controller1.Screen.print(Brain.Battery.capacity());
+  Controller1.Screen.print("%%");
+}
 void usercontrol(void) {
   // User control code here, inside the loop
   while (1) {
     int strafeSpeed = 0;
     if(Controller1.ButtonL1.pressing())
-      strafeSpeed = -75;
+      strafeSpeed = -100;
     else if(Controller1.ButtonR1.pressing())
-      strafeSpeed = 75;
+      strafeSpeed = 100;
     
-    float lSpeed = Controller1.Axis2.value() + Controller1.Axis3.value()/2;
-    float rSpeed = Controller1.Axis3.value() + Controller1.Axis2.value()/2;
+    float lSpeed = 0;
+    float rSpeed = 0;
+
+    
+    if (isFast)
+    {
+      lSpeed = Controller1.Axis2.value();
+      rSpeed = Controller1.Axis3.value();
+    }
+    else
+    {
+      lSpeed = Controller1.Axis2.value() + Controller1.Axis3.value()/2;
+      rSpeed = Controller1.Axis3.value() + Controller1.Axis2.value()/2;
+    }
+   
 
     if (Controller1.Axis2.value() != 0 && Controller1.Axis3.value() == 0)
       rSpeed = 0;
     else if (Controller1.Axis3.value() != 0 && Controller1.Axis2.value() == 0)
       lSpeed = 0;
 
-    MoveMotors(lSpeed, rSpeed, strafeSpeed);
-  
-      
-
-  
-
-
-    //else
-      //Arm.stop(hold);  
-
-    //if(Controller1.Button.pressing())
-      //Claw.spin(fwd, ClawSpeed, pct);
-
-    //else if(Controller1.Button.pressing())
-      //Claw.spin(fwd, -ClawSpeed, pct);
-
-    //else
-      //Claw.stop(hold);
+    setSideSpeeds(lSpeed, rSpeed, strafeSpeed);
+    wait(20, msec);
     
-
-    wait(20, msec); // Sleep the task for a short amount of time to
-                    // prevent wasted resources.
-                    
   }
 }
 
+void ToggleSpeed()
+{
+  isFast = !isFast;      
+  WriteInfo();
+}
 int main() {
-  // Set up callbacks for autonomous and driver control periods.
+  WriteInfo();
+  Controller1.ButtonY.pressed(ToggleSpeed);
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
 
-  // Run the pre-autonomous function.
   pre_auton();
 
-  // Prevent main from exiting with an infinite loop.
   while (true) {
     wait(100, msec);
   }
