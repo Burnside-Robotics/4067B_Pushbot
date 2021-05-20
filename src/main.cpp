@@ -105,12 +105,17 @@ void usercontrol(void) {
   while (1) {
     int strafeSpeed = 0;
     if(Controller1.ButtonL1.pressing())
-      strafeSpeed = -100;
+      strafeSpeed = -75;
     else if(Controller1.ButtonR1.pressing())
-      strafeSpeed = 100;
+      strafeSpeed = 75;
     
     float lSpeed = Controller1.Axis2.value() + Controller1.Axis3.value()/2;
     float rSpeed = Controller1.Axis3.value() + Controller1.Axis2.value()/2;
+
+    if (Controller1.Axis2.value() != 0 && Controller1.Axis3.value() == 0)
+      rSpeed = 0;
+    else if (Controller1.Axis3.value() != 0 && Controller1.Axis2.value() == 0)
+      lSpeed = 0;
 
     MoveMotors(lSpeed, rSpeed, strafeSpeed);
   
@@ -122,10 +127,10 @@ void usercontrol(void) {
     //else
       //Arm.stop(hold);  
 
-    //if(Controller1.ButtonR1.pressing())
+    //if(Controller1.Button.pressing())
       //Claw.spin(fwd, ClawSpeed, pct);
 
-    //else if(Controller1.ButtonR2.pressing())
+    //else if(Controller1.Button.pressing())
       //Claw.spin(fwd, -ClawSpeed, pct);
 
     //else
